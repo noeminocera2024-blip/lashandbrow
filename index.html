@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lash&amp;Brow</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FAF9F6; --surface: #FFFFFF; --surface2: #F4F2EE;
+      --border: rgba(0,0,0,0.08); --border-md: rgba(0,0,0,0.14);
+      --text: #1A1916; --text-2: #6B6860; --text-3: #9E9C97;
+      --accent: #C17B5C; --accent-bg: #F9EDE6;
+      --radius: 10px; --radius-lg: 16px;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+    input, button, select { font-family: inherit; font-size: 14px; }
+    input[type=text], input[type=email], input[type=password], input[type=tel], input[type=date], input[type=time] {
+      width: 100%; padding: 9px 12px; border: 1px solid var(--border-md);
+      border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); outline: none; }
+    button { cursor: pointer; }
+
+    /* LOGIN */
+    #loginPage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem 2rem; width: 100%; max-width: 380px; text-align: center; }
+    .login-logo { font-size: 28px; color: var(--accent); margin-bottom: 8px; }
+    .login-title { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 400; }
+    .login-sub { font-size: 14px; color: var(--text-3); margin: 4px 0 2rem; }
+    .login-form { text-align: left; display: flex; flex-direction: column; gap: 1rem; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; color: var(--text-2); font-weight: 500; }
+    .btn-primary { width: 100%; padding: 10px; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius); font-size: 14px; font-weight: 500; margin-top: 4px; }
+    .btn-toggle { margin-top: 1.25rem; background: none; border: none; color: var(--text-3); font-size: 13px; text-decoration: underline; }
+    .msg-error { font-size: 13px; color: #c0392b; background: #fdecea; padding: 8px 12px; border-radius: 8px; }
+
+    /* CONFIG */
+    #configPage { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .config-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem 2rem; width: 100%; max-width: 460px; }
+    .config-card h1 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; margin-bottom: 6px; }
+    .config-card p { font-size: 14px; color: var(--text-2); margin-bottom: 1.5rem; line-height: 1.6; }
+    .hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+    /* DASHBOARD */
+    #dashPage { display: none; min-height: 100vh; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+    .header-logo { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; }
+    .header-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .btn-logout { background: none; border: 1px solid var(--border-md); border-radius: 8px; padding: 6px 14px; font-size: 13px; color: var(--text-2); }
+
+    /* TABS */
+    .tabs { display: flex; gap: 2px; padding: 0 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .tab-btn { padding: 12px 20px; font-size: 14px; background: none; border: none; color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 500; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+    /* CLIENTI */
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.5rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .stat-label { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
+    .stat-num { font-size: 22px; font-weight: 500; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 1.25rem; }
+    .search-wrap { flex: 1; min-width: 160px; position: relative; }
+    .search-wrap input { padding-left: 32px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 16px; pointer-events: none; }
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border-md); background: transparent; color: var(--text-2); font-size: 12px; }
+    .filter-btn.active { background: var(--surface); color: var(--text); border-color: var(--text); font-weight: 500; }
+    .btn-add { padding: 7px 16px; border-radius: 8px; border: none; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .client-list { display: flex; flex-direction: column; gap: 8px; }
+    .client-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px; flex-shrink: 0; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 15px; font-weight: 500; }
+    .card-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; }
+    .b-ext { background: #EEEDFE; color: #3C3489; }
+    .b-lam { background: #E1F5EE; color: #085041; }
+    .b-sopra { background: #FAEEDA; color: #633806; }
+    .card-date { font-size: 12px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+    .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .icon-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-3); font-size: 14px; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 14px; }
+
+    /* MODALE CLIENTE */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+    .overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 1.75rem; width: 100%; max-width: 580px; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; }
+    .service-list { display: flex; flex-direction: column; gap: 8px; }
+    .service-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-md); background: transparent; text-align: left; cursor: pointer; width: 100%; }
+    .service-opt.selected { border-color: var(--accent); background: var(--accent-bg); }
+    .chk { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-md); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; color: var(--accent); }
+    .chk.on { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+    .btn-cancel { padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border-md); background: transparent; color: var(--text-2); }
+    .btn-save { padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; border: none; background: var(--text); color: var(--bg); }
+
+    /* SCHEMA */
+    .schema-section { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface2); }
+    .schema-label { font-size: 13px; color: var(--text-2); font-weight: 500; margin-bottom: 10px; }
+    .schema-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill-btn { padding: 5px 12px; font-size: 12px; border-radius: 20px; border: 1px solid var(--border-md); background: var(--surface); color: var(--text-2); cursor: pointer; transition: all 0.15s; }
+    .pill-btn.on { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; font-weight: 500; }
+    .eye-wrap { display: flex; justify-content: center; margin-bottom: 10px; }
+
+    /* CALENDARIO */
+    #calPage { display: none; }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; }
+    .cal-nav { display: flex; align-items: center; gap: 8px; }
+    .cal-nav-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-md); background: var(--surface); color: var(--text-2); font-size: 18px; display: flex; align-items: center; justify-content: center; }
+    .cal-title { font-size: 16px; font-weight: 500; min-width: 180px; text-align: center; }
+    .btn-add-apt { padding: 7px 16px; border-radius: 8px; border: none; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; }
+    .week-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .week-head { display: grid; grid-template-columns: 52px repeat(7,1fr); border-bottom: 1px solid var(--border); }
+    .wh-empty { background: var(--surface2); }
+    .wh-day { background: var(--surface2); padding: 8px 6px; text-align: center; border-left: 1px solid var(--border); }
+    .wh-day-name { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+    .wh-day-num { font-size: 20px; font-weight: 500; color: var(--text); margin-top: 2px; }
+    .wh-day.today .wh-day-num { color: var(--accent); }
+    .wh-day.today .wh-day-name { color: var(--accent); }
+    .week-body { display: grid; grid-template-columns: 52px repeat(7,1fr); }
+    .time-col { display: flex; flex-direction: column; }
+    .time-slot-label { height: 52px; display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 8px 0 0; font-size: 11px; color: var(--text-3); border-bottom: 1px solid var(--border); }
+    .day-col { border-left: 1px solid var(--border); position: relative; }
+    .day-slot { height: 52px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+    .day-slot:hover { background: var(--surface2); }
+    .apt-block { position: absolute; left: 2px; right: 2px; border-radius: 6px; padding: 3px 6px; font-size: 11px; font-weight: 500; overflow: hidden; cursor: pointer; z-index: 2; line-height: 1.3; }
+    .apt-ext { background: #EEEDFE; color: #3C3489; border-left: 3px solid #534AB7; }
+    .apt-lam { background: #E1F5EE; color: #085041; border-left: 3px solid #0F6E56; }
+    .apt-sopra { background: #FAEEDA; color: #633806; border-left: 3px solid #854F0B; }
+    .apt-multi { background: #FAECE7; color: #712B13; border-left: 3px solid #993C1D; }
+
+    /* MODALE APPUNTAMENTO */
+    .apt-modal { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 1.75rem; width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 1rem; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .apt-select { width: 100%; padding: 9px 12px; border: 1px solid var(--border-md); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 14px; outline: none; }
+
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .controls { flex-direction: column; align-items: stretch; }
+      .btn-add, .btn-add-apt { width: 100%; text-align: center; }
+      .week-head, .week-body { grid-template-columns: 36px repeat(7,1fr); }
+      .wh-day-num { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- CONFIG -->
+<div id="configPage" style="display:flex">
+  <div class="config-card">
+    <div style="font-size:28px;color:var(--accent);margin-bottom:8px">✦</div>
+    <h1>Configura Supabase</h1>
+    <p>Inserisci le tue credenziali Supabase. Le trovi in <strong>Project Settings → API</strong>.</p>
+    <div class="field" style="margin-bottom:1rem">
+      <label>Project URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co">
+      <div class="hint">Settings → API → Project URL</div>
+    </div>
+    <div class="field">
+      <label>Anon Key</label>
+      <input type="text" id="cfgKey" placeholder="eyJ...">
+      <div class="hint">Settings → API → anon public</div>
+    </div>
+    <div id="cfgError" style="display:none;margin-top:10px" class="msg-error"></div>
+    <button class="btn-primary" style="margin-top:1.25rem" onclick="saveConfig()">Salva e continua</button>
+    <p style="margin-top:1rem;font-size:12px;color:var(--text-3)">Le credenziali vengono salvate solo nel tuo browser.</p>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginPage" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">✦</div>
+    <h1 class="login-title">Lash&amp;Brow</h1>
+    <p class="login-sub">Registro clienti &amp; calendario</p>
+    <form class="login-form" onsubmit="handleAuth(event)">
+      <div class="field"><label>Email</label><input type="email" id="authEmail" placeholder="tu@esempio.it" required></div>
+      <div class="field"><label>Password</label><input type="password" id="authPwd" placeholder="••••••••" required></div>
+      <div id="authError" style="display:none" class="msg-error"></div>
+      <button type="submit" class="btn-primary" id="authBtn">Accedi</button>
+    </form>
+    <button class="btn-toggle" onclick="toggleMode()">Nessun account? Registrati</button>
+    <button style="margin-top:8px;background:none;border:none;color:var(--text-3);font-size:12px;cursor:pointer" onclick="resetConfig()">Cambia configurazione</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashPage">
+  <header>
+    <div>
+      <div class="header-logo">✦ Lash&amp;Brow</div>
+      <div class="header-sub" id="userEmail"></div>
+    </div>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </header>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabClienti" onclick="switchTab('clienti')">Clienti</button>
+    <button class="tab-btn" id="tabCalendario" onclick="switchTab('calendario')">Calendario</button>
+  </div>
+
+  <!-- TAB CLIENTI -->
+  <div id="clientiPage">
+    <main>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Tutte le clienti</div><div class="stat-num" id="sAll">0</div></div>
+        <div class="stat"><div class="stat-label">Extension ciglia</div><div class="stat-num" id="sExt">0</div></div>
+        <div class="stat"><div class="stat-label">Laminazione ciglia</div><div class="stat-num" id="sLam">0</div></div>
+        <div class="stat"><div class="stat-label">Lam. sopracciglia</div><div class="stat-num" id="sSopra">0</div></div>
+      </div>
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="searchInput" placeholder="Cerca cliente..." oninput="renderList()">
+        </div>
+        <div class="filter-row">
+          <button class="filter-btn active" data-f="all" onclick="setFilter('all')">Tutte</button>
+          <button class="filter-btn" data-f="ext" onclick="setFilter('ext')">Extension</button>
+          <button class="filter-btn" data-f="lam" onclick="setFilter('lam')">Lam. ciglia</button>
+          <button class="filter-btn" data-f="sopra" onclick="setFilter('sopra')">Lam. sopracciglia</button>
+        </div>
+        <button class="btn-add" onclick="openClientModal(null)">+ Nuova cliente</button>
+      </div>
+      <div class="client-list" id="clientList"></div>
+    </main>
+  </div>
+
+  <!-- TAB CALENDARIO -->
+  <div id="calPage">
+    <main>
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
+          <div class="cal-title" id="calTitle"></div>
+          <button class="cal-nav-btn" onclick="calNext()">&#8250;</button>
+        </div>
+        <button class="btn-add-apt" onclick="openAptModal(null)">+ Appuntamento</button>
+      </div>
+      <div class="week-wrap">
+        <div class="week-head" id="weekHead"></div>
+        <div class="week-body" id="weekBody"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODALE CLIENTE -->
+<div class="overlay" id="clientModal" onclick="if(event.target.id==='clientModal')closeClientModal()">
+  <div class="modal">
+    <div class="modal-title" id="clientModalTitle">Nuova cliente</div>
+    <div class="field"><label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Nome e cognome *</label><input type="text" id="fName" placeholder="es. Sara Rossi"></div>
+    <div class="field"><label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Telefono</label><input type="tel" id="fPhone" placeholder="es. 333 123 4567"></div>
+    <div class="field"><label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Note</label><input type="text" id="fNote" placeholder="es. sensibile alla colla"></div>
+    <div>
+      <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:8px">Servizi *</label>
+      <div class="service-list">
+        <button class="service-opt" data-s="ext" onclick="toggleSvc('ext')"><span class="chk" id="chk-ext"></span><span>✦ Extension ciglia</span></button>
+        <button class="service-opt" data-s="lam" onclick="toggleSvc('lam')"><span class="chk" id="chk-lam"></span><span>◎ Laminazione ciglia</span></button>
+        <button class="service-opt" data-s="sopra" onclick="toggleSvc('sopra')"><span class="chk" id="chk-sopra"></span><span>⌇ Laminazione sopracciglia</span></button>
+      </div>
+    </div>
+    <!-- SCHEMA EXTENSION -->
+    <div id="extSchema" style="display:none">
+      <div class="schema-section">
+        <div class="schema-label">Schema extension ciglia</div>
+        <div class="eye-wrap">
+          <svg width="300" height="105" viewBox="0 0 320 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+            <path id="svg-inner" d="M80 55 Q110 20 140 22 Q120 55 140 88 Q110 90 80 55Z" fill="#F4F2EE" stroke="#D3D1C7" stroke-width="1.5" style="cursor:pointer;transition:fill 0.2s" onclick="toggleZone('inner')"/>
+            <path id="svg-center" d="M140 22 Q160 10 180 22 Q170 55 180 88 Q160 100 140 88 Q120 55 140 22Z" fill="#F4F2EE" stroke="#D3D1C7" stroke-width="1.5" style="cursor:pointer;transition:fill 0.2s" onclick="toggleZone('center')"/>
+            <path id="svg-outer" d="M180 22 Q210 20 240 55 Q210 90 180 88 Q170 55 180 22Z" fill="#F4F2EE" stroke="#D3D1C7" stroke-width="1.5" style="cursor:pointer;transition:fill 0.2s" onclick="toggleZone('outer')"/>
+            <ellipse cx="160" cy="55" rx="18" ry="22" fill="#2C2C2A" opacity="0.85"/>
+            <ellipse cx="160" cy="55" rx="10" ry="12" fill="#1A1916"/>
+            <ellipse cx="155" cy="49" rx="4" ry="4" fill="white" opacity="0.6"/>
+            <path d="M95 40 Q90 28 88 20" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M115 28 Q114 16 115 8" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M140 22 Q142 10 145 2" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M160 20 Q162 8 164 0" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M180 22 Q183 10 187 3" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M205 28 Q211 17 216 10" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M225 40 Q232 30 238 24" stroke="#2C2C2A" stroke-width="1.5" stroke-linecap="round"/>
+            <text x="110" y="60" text-anchor="middle" font-size="10" fill="#6B6860" font-family="DM Sans,sans-serif">interno</text>
+            <text x="160" y="60" text-anchor="middle" font-size="10" fill="#6B6860" font-family="DM Sans,sans-serif">centro</text>
+            <text x="210" y="60" text-anchor="middle" font-size="10" fill="#6B6860" font-family="DM Sans,sans-serif">esterno</text>
+          </svg>
+        </div>
+        <p style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:12px">Clicca le zone per selezionarle</p>
+        <div style="margin-bottom:12px">
+          <div class="schema-label">Effetto / stile</div>
+          <div class="pill-grid" id="styleGrid">
+            <button class="pill-btn" data-style="natural" onclick="toggleStyle('natural')">Natural</button>
+            <button class="pill-btn" data-style="doll" onclick="toggleStyle('doll')">Doll eye</button>
+            <button class="pill-btn" data-style="cat" onclick="toggleStyle('cat')">Cat eye</button>
+            <button class="pill-btn" data-style="squirrel" onclick="toggleStyle('squirrel')">Squirrel</button>
+            <button class="pill-btn" data-style="wispy" onclick="toggleStyle('wispy')">Wispy</button>
+            <button class="pill-btn" data-style="fox" onclick="toggleStyle('fox')">Fox eye</button>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="schema-label">Tipo di extension</div>
+          <div class="schema-row">
+            <div>
+              <div style="font-size:11px;color:var(--text-3);margin-bottom:5px">Tecnica</div>
+              <div class="pill-grid" id="techGrid">
+                <button class="pill-btn" data-tech="classiche" onclick="toggleTech('classiche')">Classiche 1:1</button>
+                <button class="pill-btn" data-tech="volume" onclick="toggleTech('volume')">Volume russo</button>
+                <button class="pill-btn" data-tech="soft" onclick="toggleTech('soft')">Volume soft</button>
+                <button class="pill-btn" data-tech="medio" onclick="toggleTech('medio')">Volume medio</button>
+                <button class="pill-btn" data-tech="megavol" onclick="toggleTech('megavol')">Volume mega</button>
+                <button class="pill-btn" data-tech="hybrid" onclick="toggleTech('hybrid')">Ibrido</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-3);margin-bottom:5px">Curvatura</div>
+              <div class="pill-grid" id="curvGrid">
+                <button class="pill-btn" data-curv="B" onclick="toggleCurv('B')">B</button>
+                <button class="pill-btn" data-curv="C" onclick="toggleCurv('C')">C</button>
+                <button class="pill-btn" data-curv="CC" onclick="toggleCurv('CC')">CC</button>
+                <button class="pill-btn" data-curv="D" onclick="toggleCurv('D')">D</button>
+                <button class="pill-btn" data-curv="L" onclick="toggleCurv('L')">L</button>
+                <button class="pill-btn" data-curv="M" onclick="toggleCurv('M')">M</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <div class="schema-label">Ritocco</div>
+          <div class="schema-row" style="margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;color:var(--text-3);margin-bottom:5px">Settimane dal trattamento</div>
+              <div class="pill-grid" id="ritoccoGrid">
+                <button class="pill-btn" data-ritocco="2" onclick="toggleRitocco('2')">2 sett.</button>
+                <button class="pill-btn" data-ritocco="3" onclick="toggleRitocco('3')">3 sett.</button>
+                <button class="pill-btn" data-ritocco="4" onclick="toggleRitocco('4')">4 sett.</button>
+                <button class="pill-btn" data-ritocco="5" onclick="toggleRitocco('5')">5 sett.</button>
+                <button class="pill-btn" data-ritocco="6" onclick="toggleRitocco('6')">6 sett.</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-3);margin-bottom:5px">Stato ciglia al ritocco</div>
+              <div class="pill-grid" id="statoGrid">
+                <button class="pill-btn" data-stato="ottimo" onclick="toggleStato('ottimo')">Ottimo</button>
+                <button class="pill-btn" data-stato="buono" onclick="toggleStato('buono')">Buono</button>
+                <button class="pill-btn" data-stato="medio" onclick="toggleStato('medio')">Medio</button>
+                <button class="pill-btn" data-stato="scarso" onclick="toggleStato('scarso')">Scarso</button>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:5px">Note ritocco</div>
+          <input type="text" id="fRitoccoNote" placeholder="es. caduta eccessiva zona esterna...">
+        </div>
+      </div>
+    </div>
+    <div id="clientModalError" style="display:none" class="msg-error"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeClientModal()">Annulla</button>
+      <button class="btn-save" onclick="saveClient()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE APPUNTAMENTO -->
+<div class="overlay" id="aptModal" onclick="if(event.target.id==='aptModal')closeAptModal()">
+  <div class="apt-modal">
+    <div class="modal-title" id="aptModalTitle">Nuovo appuntamento</div>
+    <div class="field">
+      <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Cliente *</label>
+      <select id="aptClient" class="apt-select"><option value="">Seleziona cliente...</option></select>
+    </div>
+    <div class="field">
+      <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Servizio *</label>
+      <select id="aptService" class="apt-select">
+        <option value="ext">✦ Extension ciglia</option>
+        <option value="lam">◎ Laminazione ciglia</option>
+        <option value="sopra">⌇ Laminazione sopracciglia</option>
+      </select>
+    </div>
+    <div class="field">
+      <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Data *</label>
+      <input type="date" id="aptDate">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Ora inizio *</label>
+        <input type="time" id="aptStart">
+      </div>
+      <div class="field">
+        <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Ora fine *</label>
+        <input type="time" id="aptEnd">
+      </div>
+    </div>
+    <div class="field">
+      <label style="font-size:13px;color:var(--text-2);font-weight:500;display:block;margin-bottom:5px">Note</label>
+      <input type="text" id="aptNote" placeholder="es. portare foto riferimento">
+    </div>
+    <div id="aptError" style="display:none" class="msg-error"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAptModal()">Annulla</button>
+      <button class="btn-save" onclick="saveApt()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATO GLOBALE ─────────────────────────────────────────
+let sb = null
+let allClients = [], allApts = []
+let activeFilter = 'all'
+let editingClientId = null, editingAptId = null
+let authMode = 'login'
+let selectedSvcs = []
+let selZones = [], selStyle = null, selTech = null, selCurv = null, selRitocco = null, selStato = null
+let calWeekStart = getMonday(new Date())
+
+const SVC = {
+  ext:   { label: 'Extension ciglia',     bg: '#EEEDFE', color: '#3C3489' },
+  lam:   { label: 'Laminazione ciglia',   bg: '#E1F5EE', color: '#085041' },
+  sopra: { label: 'Lam. sopracciglia',    bg: '#FAEEDA', color: '#633806' },
+}
+const APT_CLASS = { ext: 'apt-ext', lam: 'apt-lam', sopra: 'apt-sopra' }
+const HOURS = Array.from({length:13}, (_,i) => i + 8) // 8-20
+
+// ── CONFIG ────────────────────────────────────────────────
+function show(id) {
+  ['configPage','loginPage','dashPage'].forEach(p => {
+    document.getElementById(p).style.display = p === id ? (id === 'dashPage' ? 'block' : 'flex') : 'none'
+  })
+}
+function saveConfig() {
+  const url = document.getElementById('cfgUrl').value.trim()
+  const key = document.getElementById('cfgKey').value.trim()
+  const err = document.getElementById('cfgError')
+  if (!url || !key) { err.textContent = 'Inserisci entrambi i campi'; err.style.display = 'block'; return }
+  localStorage.setItem('sb_url', url); localStorage.setItem('sb_key', key)
+  err.style.display = 'none'
+  initSupabase(url, key)
+}
+function resetConfig() {
+  localStorage.removeItem('sb_url'); localStorage.removeItem('sb_key'); show('configPage')
+}
+function initSupabase(url, key) {
+  sb = supabase.createClient(url, key)
+  sb.auth.getSession().then(({ data: { session } }) => { if (session) startDash(session); else show('loginPage') })
+  sb.auth.onAuthStateChange((_e, session) => { if (session) startDash(session); else if (sb) show('loginPage') })
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const url = localStorage.getItem('sb_url'), key = localStorage.getItem('sb_key')
+  if (url && key) initSupabase(url, key); else show('configPage')
+})
+
+// ── AUTH ──────────────────────────────────────────────────
+function toggleMode() {
+  authMode = authMode === 'login' ? 'register' : 'login'
+  document.getElementById('authBtn').textContent = authMode === 'login' ? 'Accedi' : 'Registrati'
+  document.querySelector('.btn-toggle').textContent = authMode === 'login' ? 'Nessun account? Registrati' : 'Hai già un account? Accedi'
+}
+async function handleAuth(e) {
+  e.preventDefault()
+  const email = document.getElementById('authEmail').value
+  const password = document.getElementById('authPwd').value
+  const errEl = document.getElementById('authError')
+  errEl.style.display = 'none'
+  const { error } = authMode === 'login'
+    ? await sb.auth.signInWithPassword({ email, password })
+    : await sb.auth.signUp({ email, password })
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block' }
+}
+async function logout() { await sb.auth.signOut() }
+
+// ── DASHBOARD ─────────────────────────────────────────────
+function startDash(session) {
+  document.getElementById('userEmail').textContent = session.user.email
+  show('dashPage')
+  fetchClients()
+  fetchApts()
+}
+function switchTab(tab) {
+  document.getElementById('clientiPage').style.display = tab === 'clienti' ? 'block' : 'none'
+  document.getElementById('calPage').style.display = tab === 'calendario' ? 'block' : 'none'
+  document.getElementById('tabClienti').classList.toggle('active', tab === 'clienti')
+  document.getElementById('tabCalendario').classList.toggle('active', tab === 'calendario')
+  if (tab === 'calendario') renderCalendar()
+}
+
+// ── CLIENTI ───────────────────────────────────────────────
+async function fetchClients() {
+  const { data } = await sb.from('clients').select('*').order('created_at', { ascending: false })
+  allClients = data || []
+  updateStats(); renderList(); populateClientSelect()
+}
+function updateStats() {
+  document.getElementById('sAll').textContent = allClients.length
+  document.getElementById('sExt').textContent = allClients.filter(c => c.services?.includes('ext')).length
+  document.getElementById('sLam').textContent = allClients.filter(c => c.services?.includes('lam')).length
+  document.getElementById('sSopra').textContent = allClients.filter(c => c.services?.includes('sopra')).length
+}
+function setFilter(f) {
+  activeFilter = f
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f))
+  renderList()
+}
+function renderList() {
+  const q = document.getElementById('searchInput').value.toLowerCase()
+  const list = allClients.filter(c => c.name.toLowerCase().includes(q) && (activeFilter === 'all' || c.services?.includes(activeFilter)))
+  const el = document.getElementById('clientList')
+  if (!list.length) { el.innerHTML = '<div class="empty"><div style="font-size:28px;margin-bottom:8px">✦</div><p>Nessuna cliente trovata</p></div>'; return }
+  el.innerHTML = list.map(c => {
+    const svcs = c.services || []
+    const [avBg, avCol] = svcs.length > 1 ? ['#FAECE7','#712B13'] : svcs.length === 1 ? [SVC[svcs[0]].bg, SVC[svcs[0]].color] : ['#F4F2EE','#9E9C97']
+    const ini = c.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
+    const date = new Date(c.created_at).toLocaleDateString('it-IT', { day:'numeric', month:'short' })
+    const badges = svcs.map(s => `<span class="badge b-${s}">${SVC[s].label}</span>`).join('')
+    return `<div class="client-card">
+      <div class="avatar" style="background:${avBg};color:${avCol}">${ini}</div>
+      <div class="card-info">
+        <div class="card-name">${c.name}</div>
+        <div class="card-meta">${[c.phone,c.note].filter(Boolean).join(' · ')}</div>
+        <div class="badges">${badges}</div>
+      </div>
+      <span class="card-date">${date}</span>
+      <div class="card-actions">
+        <button class="icon-btn" onclick="openClientModal('${c.id}')">✎</button>
+        <button class="icon-btn" onclick="deleteClient('${c.id}')">✕</button>
+      </div>
+    </div>`
+  }).join('')
+}
+async function deleteClient(id) {
+  if (!confirm('Eliminare questa cliente?')) return
+  await sb.from('clients').delete().eq('id', id)
+  fetchClients()
+}
+
+// ── MODALE CLIENTE ────────────────────────────────────────
+function openClientModal(id) {
+  editingClientId = id; selectedSvcs = []; resetSchema()
+  document.getElementById('clientModalError').style.display = 'none'
+  document.getElementById('clientModalTitle').textContent = id ? 'Modifica cliente' : 'Nuova cliente'
+  if (id) {
+    const c = allClients.find(x => x.id === id)
+    document.getElementById('fName').value = c.name
+    document.getElementById('fPhone').value = c.phone || ''
+    document.getElementById('fNote').value = c.note || ''
+    selectedSvcs = [...(c.services || [])]
+    if (c.ext_schema) loadSchema(c.ext_schema)
+  } else {
+    document.getElementById('fName').value = ''
+    document.getElementById('fPhone').value = ''
+    document.getElementById('fNote').value = ''
+  }
+  ;['ext','lam','sopra'].forEach(s => {
+    const on = selectedSvcs.includes(s)
+    document.querySelector(`[data-s="${s}"]`).classList.toggle('selected', on)
+    const chk = document.getElementById('chk-'+s)
+    chk.classList.toggle('on', on); chk.textContent = on ? '✓' : ''
+  })
+  document.getElementById('extSchema').style.display = selectedSvcs.includes('ext') ? 'block' : 'none'
+  document.getElementById('clientModal').classList.add('open')
+}
+function closeClientModal() { document.getElementById('clientModal').classList.remove('open') }
+function toggleSvc(s) {
+  const idx = selectedSvcs.indexOf(s)
+  if (idx > -1) selectedSvcs.splice(idx,1); else selectedSvcs.push(s)
+  const on = selectedSvcs.includes(s)
+  document.querySelector(`[data-s="${s}"]`).classList.toggle('selected', on)
+  const chk = document.getElementById('chk-'+s)
+  chk.classList.toggle('on', on); chk.textContent = on ? '✓' : ''
+  document.getElementById('extSchema').style.display = selectedSvcs.includes('ext') ? 'block' : 'none'
+}
+async function saveClient() {
+  const name = document.getElementById('fName').value.trim()
+  const errEl = document.getElementById('clientModalError')
+  errEl.style.display = 'none'
+  if (!name) { errEl.textContent = 'Inserisci il nome'; errEl.style.display = 'block'; return }
+  if (!selectedSvcs.length) { errEl.textContent = 'Seleziona almeno un servizio'; errEl.style.display = 'block'; return }
+  const extSchemaData = selectedSvcs.includes('ext') ? {
+    zones: selZones, style: selStyle, tech: selTech, curv: selCurv,
+    ritocco: selRitocco, stato: selStato,
+    ritoccoNote: document.getElementById('fRitoccoNote')?.value.trim() || ''
+  } : null
+  const payload = { name, phone: document.getElementById('fPhone').value.trim(), note: document.getElementById('fNote').value.trim(), services: selectedSvcs, ext_schema: extSchemaData }
+  const { error } = editingClientId
+    ? await sb.from('clients').update(payload).eq('id', editingClientId)
+    : await sb.from('clients').insert([payload])
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return }
+  closeClientModal(); fetchClients()
+}
+
+// ── SCHEMA ────────────────────────────────────────────────
+function toggleZone(z) {
+  const idx = selZones.indexOf(z)
+  if (idx > -1) selZones.splice(idx,1); else selZones.push(z)
+  ;['inner','center','outer'].forEach(zone => document.getElementById('svg-'+zone)?.setAttribute('fill', selZones.includes(zone) ? '#CECBF6' : '#F4F2EE'))
+}
+function toggleStyle(v) { selStyle = selStyle===v?null:v; document.querySelectorAll('#styleGrid .pill-btn').forEach(b=>b.classList.toggle('on',b.dataset.style===selStyle)) }
+function toggleTech(v) { selTech = selTech===v?null:v; document.querySelectorAll('#techGrid .pill-btn').forEach(b=>b.classList.toggle('on',b.dataset.tech===selTech)) }
+function toggleCurv(v) { selCurv = selCurv===v?null:v; document.querySelectorAll('#curvGrid .pill-btn').forEach(b=>b.classList.toggle('on',b.dataset.curv===selCurv)) }
+function toggleRitocco(v) { selRitocco = selRitocco===v?null:v; document.querySelectorAll('#ritoccoGrid .pill-btn').forEach(b=>b.classList.toggle('on',b.dataset.ritocco===selRitocco)) }
+function toggleStato(v) { selStato = selStato===v?null:v; document.querySelectorAll('#statoGrid .pill-btn').forEach(b=>b.classList.toggle('on',b.dataset.stato===selStato)) }
+function resetSchema() {
+  selZones=[]; selStyle=null; selTech=null; selCurv=null; selRitocco=null; selStato=null
+  ;['inner','center','outer'].forEach(z=>document.getElementById('svg-'+z)?.setAttribute('fill','#F4F2EE'))
+  document.querySelectorAll('#styleGrid .pill-btn,#techGrid .pill-btn,#curvGrid .pill-btn,#ritoccoGrid .pill-btn,#statoGrid .pill-btn').forEach(b=>b.classList.remove('on'))
+  const rn = document.getElementById('fRitoccoNote'); if(rn) rn.value=''
+}
+function loadSchema(d) {
+  resetSchema(); if(!d) return
+  selZones=d.zones||[]; selStyle=d.style||null; selTech=d.tech||null; selCurv=d.curv||null; selRitocco=d.ritocco||null; selStato=d.stato||null
+  ;['inner','center','outer'].forEach(z=>document.getElementById('svg-'+z)?.setAttribute('fill',selZones.includes(z)?'#CECBF6':'#F4F2EE'))
+  if(selStyle) document.querySelector(`#styleGrid [data-style="${selStyle}"]`)?.classList.add('on')
+  if(selTech) document.querySelector(`#techGrid [data-tech="${selTech}"]`)?.classList.add('on')
+  if(selCurv) document.querySelector(`#curvGrid [data-curv="${selCurv}"]`)?.classList.add('on')
+  if(selRitocco) document.querySelector(`#ritoccoGrid [data-ritocco="${selRitocco}"]`)?.classList.add('on')
+  if(selStato) document.querySelector(`#statoGrid [data-stato="${selStato}"]`)?.classList.add('on')
+  const rn=document.getElementById('fRitoccoNote'); if(rn) rn.value=d.ritoccoNote||''
+}
+
+// ── CALENDARIO ────────────────────────────────────────────
+function getMonday(d) {
+  const date = new Date(d)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + diff)
+  date.setHours(0,0,0,0)
+  return date
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r }
+function fmtDate(d) { return d.toISOString().split('T')[0] }
+function calPrev() { calWeekStart = addDays(calWeekStart, -7); renderCalendar() }
+function calNext() { calWeekStart = addDays(calWeekStart, 7); renderCalendar() }
+
+async function fetchApts() {
+  const { data } = await sb.from('appointments').select('*').order('date').order('start_time')
+  allApts = data || []
+}
+
+function populateClientSelect() {
+  const sel = document.getElementById('aptClient')
+  sel.innerHTML = '<option value="">Seleziona cliente...</option>'
+  allClients.forEach(c => {
+    const opt = document.createElement('option')
+    opt.value = c.id; opt.textContent = c.name; sel.appendChild(opt)
+  })
+}
+
+function renderCalendar() {
+  const days = Array.from({length:7}, (_,i) => addDays(calWeekStart, i))
+  const today = fmtDate(new Date())
+  const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre']
+  const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
+
+  // Titolo
+  const s = calWeekStart, e = addDays(calWeekStart, 6)
+  document.getElementById('calTitle').textContent =
+    s.getMonth()===e.getMonth()
+      ? `${s.getDate()}–${e.getDate()} ${months[s.getMonth()]} ${s.getFullYear()}`
+      : `${s.getDate()} ${months[s.getMonth()]} – ${e.getDate()} ${months[e.getMonth()]} ${e.getFullYear()}`
+
+  // Intestazione giorni
+  const head = document.getElementById('weekHead')
+  head.innerHTML = '<div class="wh-empty"></div>' + days.map((d,i) => {
+    const isToday = fmtDate(d) === today
+    return `<div class="wh-day${isToday?' today':''}">
+      <div class="wh-day-name">${dayNames[i]}</div>
+      <div class="wh-day-num">${d.getDate()}</div>
+    </div>`
+  }).join('')
+
+  // Corpo ore
+  const body = document.getElementById('weekBody')
+  // Colonna ore
+  let html = '<div class="time-col">' + HOURS.map(h => `<div class="time-slot-label">${h}:00</div>`).join('') + '</div>'
+
+  // Colonne giorni
+  days.forEach(day => {
+    const dateStr = fmtDate(day)
+    const dayApts = allApts.filter(a => a.date === dateStr)
+    html += `<div class="day-col">`
+    // Slot cliccabili
+    HOURS.forEach(h => {
+      html += `<div class="day-slot" onclick="openAptModal('${dateStr}', ${h})"></div>`
+    })
+    // Appuntamenti posizionati
+    dayApts.forEach(apt => {
+      const [sh, sm] = apt.start_time.split(':').map(Number)
+      const [eh, em] = apt.end_time.split(':').map(Number)
+      const topPx = (sh - 8) * 52 + (sm / 60) * 52
+      const heightPx = ((eh * 60 + em) - (sh * 60 + sm)) / 60 * 52
+      const cls = APT_CLASS[apt.service] || 'apt-multi'
+      const clientName = allClients.find(c=>c.id===apt.client_id)?.name || '—'
+      html += `<div class="apt-block ${cls}" style="top:${topPx}px;height:${Math.max(heightPx,22)}px"
+        onclick="event.stopPropagation();openAptModal(null,null,'${apt.id}')">
+        <div>${apt.start_time.slice(0,5)} ${clientName}</div>
+        <div style="opacity:0.75;font-weight:400">${SVC[apt.service]?.label||''}</div>
+      </div>`
+    })
+    html += '</div>'
+  })
+  body.innerHTML = html
+}
+
+function openAptModal(dateStr, hour, aptId) {
+  editingAptId = aptId || null
+  document.getElementById('aptError').style.display = 'none'
+  document.getElementById('aptModalTitle').textContent = aptId ? 'Modifica appuntamento' : 'Nuovo appuntamento'
+  if (aptId) {
+    const apt = allApts.find(a => a.id === aptId)
+    document.getElementById('aptClient').value = apt.client_id || ''
+    document.getElementById('aptService').value = apt.service || 'ext'
+    document.getElementById('aptDate').value = apt.date || ''
+    document.getElementById('aptStart').value = apt.start_time?.slice(0,5) || ''
+    document.getElementById('aptEnd').value = apt.end_time?.slice(0,5) || ''
+    document.getElementById('aptNote').value = apt.note || ''
+  } else {
+    document.getElementById('aptClient').value = ''
+    document.getElementById('aptService').value = 'ext'
+    document.getElementById('aptDate').value = dateStr || fmtDate(new Date())
+    document.getElementById('aptStart').value = hour ? `${String(hour).padStart(2,'0')}:00` : ''
+    document.getElementById('aptEnd').value = hour ? `${String(hour+1).padStart(2,'0')}:00` : ''
+    document.getElementById('aptNote').value = ''
+  }
+  document.getElementById('aptModal').classList.add('open')
+}
+function closeAptModal() { document.getElementById('aptModal').classList.remove('open') }
+async function saveApt() {
+  const errEl = document.getElementById('aptError')
+  errEl.style.display = 'none'
+  const client_id = document.getElementById('aptClient').value
+  const service = document.getElementById('aptService').value
+  const date = document.getElementById('aptDate').value
+  const start_time = document.getElementById('aptStart').value
+  const end_time = document.getElementById('aptEnd').value
+  const note = document.getElementById('aptNote').value.trim()
+  if (!client_id) { errEl.textContent = 'Seleziona una cliente'; errEl.style.display = 'block'; return }
+  if (!date || !start_time || !end_time) { errEl.textContent = 'Compila data e orari'; errEl.style.display = 'block'; return }
+  if (start_time >= end_time) { errEl.textContent = "L'ora di fine deve essere dopo l'ora di inizio"; errEl.style.display = 'block'; return }
+  const payload = { client_id, service, date, start_time, end_time, note }
+  const { error } = editingAptId
+    ? await sb.from('appointments').update(payload).eq('id', editingAptId)
+    : await sb.from('appointments').insert([payload])
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return }
+  closeAptModal()
+  await fetchApts()
+  renderCalendar()
+}
+</script>
+</body>
+</html>
